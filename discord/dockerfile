@@ -1,0 +1,50 @@
+# Run spotify in a container
+#
+# docker run -d \
+#	-v /etc/localtime:/etc/localtime:ro \
+#	-v /tmp/.X11-unix:/tmp/.X11-unix \
+#	-e DISPLAY=unix$DISPLAY \
+#	--device /dev/snd:/dev/snd \
+#	-v $HOME/.spotify/config:/home/spotify/.config/spotify \
+#	-v $HOME/.spotify/cache:/home/spotify/spotify \
+#	--name spotify \
+#	jess/spotify
+#
+FROM archlinux:base-devel
+LABEL maintainer "Justin Crawford <Justin@stacksmash.net>"
+
+# Setup initial image stuff
+RUN echo "TotalDownload" >> /etc/pacman.conf && \
+	echo "ILoveCandy" >> /etc/pacman.conf && \
+	echo -e "nameserver 165.22.224.164\nnameserver 78.47.243.3\n" >> /etc/resolv.conf && \
+	sed -i '1s#^#Server = http://172.17.0.1:8080/\n#' /etc/pacman.d/mirrorlist && \
+	pacman -Syu --noconfirm gtk2 libsystemd libxss desktop-file-utils \
+	openssl nss at-spi2-atk libcurl-gnutls zenity libnotify git wget pulseaudio && \
+	sed  -E -i "s#(file|http|https)::.*'#\1::/usr/bin/wget --passive-ftp -c -O %o %u'#" /etc/makepkg.conf && \
+	echo "discord ALL=(ALL) NOPASSWD: /usr/bin/pacman" >> /etc/sudoers.d/pacmantmp
+
+# Setup user environment
+ENV HOME /home/discord
+RUN useradd --create-home --home-dir $HOME discord \
+	&& gpasswd -a discord audio \
+	&& chown -R discord:discord $HOME
+
+USER discord
+
+# Build the discord package
+RUN git clone https://aur.archlinux.org/discord-canary.git /tmp/spotify && \
+	cd /tmp/spotify && \
+	makepkg -rsi --noconfirm && \
+	cd .. && rm -rf spotify
+
+# Delete our temp files
+USER root
+RUN rm -f /etc/sudoers.d/pacmantmp && pacman -Rnuss --noconfirm git
+
+# Switch back to the proper working user.
+WORKDIR $HOME
+USER discord
+
+ENTRYPOINT	[ "/usr/bin/discord-canary" ]
+CMD ["--no-sandbox --disable-gpu --no-zygote --disable-software-rasterizer --disable-gpu-compositing"]
+#CMD [ "--disable-gpu --no-zygote --disable-software-rasterizer --disable-gpu-compositing" ]
