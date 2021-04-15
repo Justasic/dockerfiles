@@ -1,0 +1,16 @@
+#!/bin/bash
+# https://askubuntu.com/a/976561
+# https://unix.stackexchange.com/a/632458
+docker run --restart unless-stopped -d \
+	-v /etc/localtime:/etc/localtime:ro \
+	-v /tmp/.X11-unix:/tmp/.X11-unix \
+	-v ${XDG_RUNTIME_DIR}/pulse/native:${XDG_RUNTIME_DIR}/pulse/native \
+	-v ${XDG_RUNTIME_DIR}/bus:${XDG_RUNTIME_DIR}/bus \
+    -v ~/.config/pulse/cookie:/home/spotify/.config/pulse/cookie \
+	-v /home/justasic/git/dockerfiles/spotify/spotify:/home/spotify/ \
+	-e PULSE_SERVER=unix:${XDG_RUNTIME_DIR}/pulse/native \
+	-e DISPLAY=unix$DISPLAY \
+	-e DBUS_SESSION_BUS_ADDRESS=unix:path=${XDG_RUNTIME_DIR}/bus \
+	--name spotify spotify_arch:dockerfile \
+	/opt/spotify/spotify -stylesheet=/home/spotify/spotify-override.css --disable-gpu --no-zygote --disable-software-rasterizer --disable-gpu-compositing
+	#--privileged \
